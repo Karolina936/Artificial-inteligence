@@ -1,11 +1,9 @@
 from Reversi import Reversi
 
-
 def play():
 
   reversi = Reversi()
-  print('Welcom in Riversi')
-  print('Player1 start')
-  reversi.play()
+  reversi.start()
   reversi.game_result()
+
 

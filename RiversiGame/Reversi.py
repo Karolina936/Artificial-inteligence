@@ -1,7 +1,16 @@
+from collections import OrderedDict
+
+
 from Board import Board
 from Node import Node
 from Player import Player
 
+
+class GameHasEndedError(Exception):
+    pass
+
+class InvalidMoveError(Exception):
+    pass
 
 class Reversi:
 
@@ -15,8 +24,8 @@ class Reversi:
 
     GAME_STATES = {
         "IN_PROGRESS": 'In progress',
-        "BLACK_WINS": 'Black wins',
-        "WHITE_WINS": 'White wins',
+        "BLACK_WINS": 'Player1 wins',
+        "WHITE_WINS": 'Player2 wins',
         "TIE": 'Tie'
     }
 
@@ -70,10 +79,17 @@ class Reversi:
     def change_current_player(self):
         if self.player == self.player1:
             self.player = self.player2
-            print("Player2 - white color")
         else:
             self.player = self.player1
+
+
+    def print_current_player(self):
+        if self.player == self.player1:
             print("Player1 - black color")
+        else:
+            print("Player2 - white color")
+
+
 
     # array of clickable cordinations
     def available_fields(self):
@@ -93,7 +109,6 @@ class Reversi:
 
 
     def get_player_move(self):
-        self.board.print_board()
         DIGITS1TO8 = '1 2 3 4 5 6 7 8'.split()
         while True:
             print('Enter your move')
@@ -111,34 +126,43 @@ class Reversi:
 
         return Node(x, y)
 
+    def playComputer(self, player):
+        from AI import MinMax
+        boardAI = OrderedDict()
+        for i in range(8):
+            for j in range(8):
+                boardAI[Node(i, j)] = self.board.nodes[Node(i,j)]
+        move = MinMax.get_next_move(boardAI, player.color)
+        return move;
 
-    def play(self):
-        while self.game_state == self.GAME_STATES['IN_PROGRESS']:
-            node = self.get_player_move()
-            new_colors = []
-            for d in self.DIRECTIONS:
-                current_node = node + d
-                while self.is_disc_other_player(current_node):
-                    current_node += d
+    def play(self, node):
+        if not self.is_valid_move(node):
+            raise InvalidMoveError("Not valid move")
 
-                if self.is_disc_current_player(current_node):
-                    new_colors += node.check(current_node, d)
+        new_colors = []
+        for d in self.DIRECTIONS:
+            current_node = node + d
+            while self.is_disc_other_player(current_node):
+                current_node += d
 
-            # change the field to the player's field
-            for node in new_colors:
-                self.board.nodes[node] = self.player.color
+            if self.is_disc_current_player(current_node):
+                new_colors += node.check(current_node, d)
 
-            # update player result after aech move
-            self.player1.result = len(self.get_player1_discs())
-            self.player2.result = len(self.get_player2_discs())
-            self.change_current_player()
-            self.game_state = self.check()
+        # change the field to the player's field
+        for node in new_colors:
+            self.board.nodes[node] = self.player.color
+
+        # update player result after aech move
+        self.player1.result = len(self.get_player1_discs())
+        self.player2.result = len(self.get_player2_discs())
+        self.change_current_player()
+        self.game_state = self.check()
 
 
         # fields that are flipped after a move
 
+        # run after every move
 
-    # run after every move
     def check(self):
         # change player if there is no move for first player
         if not self.available_fields():
@@ -155,15 +179,17 @@ class Reversi:
         return self.GAME_STATES["IN_PROGRESS"]
 
     def game_result(self):
-        if self.game_state == self.GAME_STATES['TIE']:
-            print('Tie')
-        elif self.game_state == self.GAME_STATES['"BLACK_WINS"']:
-            print("Player1 won")
-        else:
-            print("Player2 won")
-        print("Result")
-        print("Player1: ", self.player1.result)
-        print("Player2: ", self.player2.result)
+        if self.game_state != self.GAME_STATES['IN_PROGRESS']:
+            if self.game_state == self.GAME_STATES["TIE"]:
+                print(self.GAME_STATES["TIE"])
+            elif self.game_state == self.GAME_STATES["BLACK_WINS"]:
+                print(self.GAME_STATES["BLACK_WINS"])
+            else:
+                print(self.GAME_STATES["WHITE_WINS"])
+            print("Result")
+            print("Player1: ", self.player1.result)
+            print("Player2: ", self.player2.result)
+
 
     def game_info(self):
         player_map = {
@@ -177,3 +203,61 @@ class Reversi:
             "white_count": self.player2.result,
             "black_count": self.player1.result
         }
+
+    def start(self):
+        print('Welcom in Riversi')
+        print('Select a game state:')
+        print('1. Player vs Player')
+        print('2. Player vs Computer')
+        print('3. Computer vs Computer')
+        choice = input().lower()
+
+        if int(choice) == 1:
+            print("You choose player vs player")
+            print('Player1 start')
+            while self.game_state == self.GAME_STATES['IN_PROGRESS']:
+                self.print_current_player()
+                self.board.print_board()
+                node = self.get_player_move()
+                self.play(node)
+
+        elif int(choice) == 2:
+            print("You'choose player vs computer")
+            self.player2.Computer = True;
+            while self.game_state == self.GAME_STATES['IN_PROGRESS']:
+                self.print_current_player()
+                self.board.print_board()
+                if self.player.Computer == True:
+                    node = self.playComputer(self.player)
+                else:
+                    node = self.get_player_move()
+                self.play(node)
+        elif int(choice) == 3:
+            print("You'choose computer vs computer")
+            self.player1.Computer = True;
+            self.player2.Computer = True;
+            while self.game_state == self.GAME_STATES['IN_PROGRESS']:
+                self.print_current_player()
+                self.board.print_board()
+                node = self.playComputer(self.player)
+                self.play(node)
+        else:
+            print("Wrong choice");
+            self.finish()
+
+    def finish(self):
+        print('What do yuo want to do?')
+        print('1. Finish the game')
+        print('2. Try again')
+        choice = input().lower()
+        if int(choice) == 1:
+            print("Thank you for the game")
+        elif int(choice) == 2:
+             self.start()
+        else:
+            print("Wrong choice");
+            self.finish()
+
+
+
+

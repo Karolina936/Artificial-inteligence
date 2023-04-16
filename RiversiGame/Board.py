@@ -4,9 +4,9 @@ from Node import Node
 from Player import Player
 
 
-class Board():
+class Board:
 
-    def __init__(self, player1 : Player, player2: Player):
+    def __init__(self, player1: Player = None, player2: Player = None):
         nodesDict = OrderedDict()
         for i in range(8):
             for j in range(8):
@@ -16,6 +16,15 @@ class Board():
         nodesDict[Node(3, 4)] = player2.color
         nodesDict[Node(4, 3)] = player2.color
         self.nodes = nodesDict
+
+    def set(self, nodes: OrderedDict()):
+        nodesDict = OrderedDict()
+        for i in range(8):
+            for j in range(8):
+                nodesDict[Node(i, j)] = nodes[Node(i, j)]
+        self.nodes = nodesDict
+
+
 
     def print_board(self):
         print('    1   2   3   4   5   6   7   8')
