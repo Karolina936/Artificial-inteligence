@@ -14,8 +14,8 @@ class InvalidMoveError(Exception):
 
 class Reversi:
 
-    BLACK = 'B'
-    WHITE = 'W'
+    BLACK = 1
+    WHITE = 2
     EMPTY = ' '
 
     DIRECTIONS = [Node(x, y)
@@ -85,9 +85,9 @@ class Reversi:
 
     def print_current_player(self):
         if self.player == self.player1:
-            print("Player1 - black color")
+            print("\nPlayer1")
         else:
-            print("Player2 - white color")
+            print("\nPlayer2")
 
 
 
@@ -127,13 +127,21 @@ class Reversi:
         return Node(x, y)
 
     def playComputer(self, player):
-        from AI import MinMax
+        from AI import Algorithms
         boardAI = OrderedDict()
         for i in range(8):
             for j in range(8):
                 boardAI[Node(i, j)] = self.board.nodes[Node(i,j)]
-        move = MinMax.get_next_move(boardAI, player.color)
-        return move;
+        move, nodes = Algorithms.get_next_move(boardAI, player.color)
+        return move, nodes
+
+    def copyBoard(self):
+        board = OrderedDict()
+        for i in range(8):
+            for j in range(8):
+                board[Node(i, j)] = self.board.nodes[Node(i, j)]
+        return board
+
 
     def play(self, node):
         if not self.is_valid_move(node):
@@ -190,20 +198,6 @@ class Reversi:
             print("Player1: ", self.player1.result)
             print("Player2: ", self.player2.result)
 
-
-    def game_info(self):
-        player_map = {
-            "B": "black",
-            "W": "white"
-        }
-        return {
-            "board": self.board.print_board(),
-            "player": player_map[self.player.color],
-            "state": self.game_state,
-            "white_count": self.player2.result,
-            "black_count": self.player1.result
-        }
-
     def start(self):
         print('Welcom in Riversi')
         print('Select a game state:')
@@ -236,11 +230,13 @@ class Reversi:
             print("You'choose computer vs computer")
             self.player1.Computer = True;
             self.player2.Computer = True;
+            self.board.print_board()
             while self.game_state == self.GAME_STATES['IN_PROGRESS']:
                 self.print_current_player()
-                self.board.print_board()
-                node = self.playComputer(self.player)
+                node, amount_of_nodes = self.playComputer(self.player)
                 self.play(node)
+                self.board.print_board()
+                print('Nodes searched: ' + str(amount_of_nodes))
         else:
             print("Wrong choice");
             self.finish()

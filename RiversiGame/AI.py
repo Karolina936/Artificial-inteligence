@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import random
 
 from Board import Board
 from Reversi import Reversi
@@ -7,9 +8,9 @@ from Node import Node
 from Player import Player
 
 
+
 class AI:
-    MAX = 'W'
-    MIN = 'B'
+
     INFINITY = 1.0e+10
 
     def __init__(self, board=None):
@@ -17,10 +18,8 @@ class AI:
         if board:
             self.set_board(board)
 
-        # changes to board form ai to game board
 
     def set_board(self, board):
-        self.game.board = Board(self.game.player2, self.game.player1)
         self.game.board.set(board)
 
         # finding available moves
@@ -30,7 +29,6 @@ class AI:
         self.game.player = Player(player)
         return self.game.available_fields()
 
-        # gets the changes of the human player
 
     def get_resulting_board(self, board, player, coord):
         self.set_board(board)
@@ -38,62 +36,142 @@ class AI:
         self.game.play(coord)
         return board
 
-    def player_pool(self, board, player):
-        self.set_board(board)
-        return ''.join(''.join(row) for row in self.board).count(player)
-
-        # defines if the game is over or not
-
     def is_game_over(self, board):
         self.set_board(board)
         return self.game.check() != self.game.GAME_STATES["IN_PROGRESS"]
 
-class MinMax:
+class Algorithms:
+    MAX = ' '
+    MIN = ' '
+
+    @staticmethod
+    def set_min_max(player):
+        Algorithms.MAX = player
+        Algorithms.MIN = Algorithms.changePlayer(player)
+
+
     @staticmethod
     def get_next_move(board, player):
         # the depth argument defines how many levels deep we go before using heuristic
-        _, move = MinMax.minimax(board, 2, player)
-        return move
+        Algorithms.set_min_max(player)
+        _, move, nodes = Algorithms.alfa_beta(board, 3, player)
+        return move, nodes
 
     @staticmethod
-    def minimax(board, depth, player):
+    def minimax(board, depth, player, nodes_visited=0):
         ai = AI();
         # if game is over then return something
         best_move = None
         # if it is a max node
         if ai.is_game_over(board) or depth == 0:
-            return (MinMax.game_heuristic(board), None)
+            return Algorithms.more_tiles(board, player), None, nodes_visited
 
-        if player == ai.MAX:
+
+        if player == Algorithms.MAX:
             best_score = -ai.INFINITY
-            available_moves = ai.available_moves(board, ai.MAX)
+            available_moves = ai.available_moves(board, Algorithms.MAX)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, ai.MAX, move)
-                value, _ = MinMax.minimax(node, depth - 1, ai.MIN)
+                    board, Algorithms.MAX, move)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MIN, nodes_visited)
                 if value > best_score:
                     best_score = value
                     best_move = move
-            return (best_score, best_move)
+                nodes_visited += nodes
+            return best_score, best_move, nodes_visited
 
         # if it is a min node
         else:
             best_score = ai.INFINITY
-            available_moves = ai.available_moves(board,ai.MIN)
+            available_moves = ai.available_moves(board, Algorithms.MIN)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, ai.MIN, move)
-                value, _ = MinMax.minimax(node, depth - 1,ai.MAX)
+                    board, Algorithms.MIN, move)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MAX, nodes_visited)
                 if value < best_score:
                     best_score = value
                     best_move = move
-            return (best_score, best_move)
+                nodes_visited += nodes
+            return best_score, best_move, nodes_visited
+
+    @staticmethod
+    def alfa_beta(board,depth, player, alpha=float('-inf'), beta=float('inf'), nodes_visited=0):
+        ai = AI();
+        # if game is over then return something
+        best_move = None
+
+        if ai.is_game_over(board) or depth == 0:
+            return Algorithms.heuristic3(board), None, nodes_visited
+
+        if player == Algorithms.MAX:
+            best_score = -ai.INFINITY
+            available_moves = ai.available_moves(board, Algorithms.MAX)
+            for move in available_moves:
+                node = ai.get_resulting_board(
+                    board, Algorithms.MAX, move)
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MIN, alpha, beta, nodes_visited)
+                if value > best_score:
+                    best_score = value
+                    best_move = move
+                alpha = max(alpha, best_score)
+
+                if beta <= alpha:
+                    break
+                nodes_visited += 1
+            return best_score, best_move, nodes_visited
+
+            # if it is a min node
+        else:
+            best_score = ai.INFINITY
+            available_moves = ai.available_moves(board, Algorithms.MIN)
+            for move in available_moves:
+                node = ai.get_resulting_board(
+                    board, Algorithms.MIN, move)
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MAX, alpha, beta, nodes_visited)
+                if value < best_score:
+                    best_score = value
+                    best_move = move
+
+                beta = min(beta, best_score)
+
+                if beta <= alpha:
+                    break
+                nodes_visited += 1
+            return best_score, best_move, nodes_visited
+
+    @staticmethod
+    def changePlayer(player):
+        if player == 1:
+            return 2
+        else: return 1
+
+    @staticmethod
+    def heuristic3(board):
+        max_player = 0
+        min_player = 0
+        for row in range(8):
+            for col in range(8):
+                if board[Node(row,col)] == Algorithms.MAX:
+                    max_player +=1
+                elif board[Node(row,col)] == Algorithms.MIN:
+                    min_player += 1
+        return random.randint(90, 100) * (max_player - min_player ) / (max_player + min_player)
+
+    @staticmethod
+    def heuristic2(board: Board, player):
+        all_nodes = [Node(i, j) for i in range(8) for j in range(8)]
+        score = 0
+        for row in range(8):
+            for col in range(8):
+                if board[Node(row, col)] == player:
+                    score += 1
+        return random() * score
 
     @staticmethod
     def game_heuristic(board):
         # defining the ai and Opponent color
-        my_color = AI.MAX
-        opp_color = AI.MIN
+        my_color = Algorithms.MAX
+        opp_color = Algorithms.MIN
 
         my_tiles = 0
         opp_tiles = 0
@@ -273,8 +351,8 @@ class MinMax:
         opponent’s mobility and increasing one’s own mobility
         '''
         # basically it calculates the difference between available moves
-        my_tiles = len(AI().available_moves(board, AI.MAX))
-        opp_tiles = len(AI().available_moves(board, AI.MIN))
+        my_tiles = len(AI().available_moves(board, Algorithms.MAX))
+        opp_tiles = len(AI().available_moves(board, Algorithms.MIN))
 
         if my_tiles > opp_tiles:
             m = (100.0 * my_tiles) / (my_tiles + opp_tiles)
@@ -287,7 +365,7 @@ class MinMax:
         # =============================================================================================
         # final weighted score
         # adding different weights to different evaluations
-        return (10 * p) + (801.724 * c) + (382.026 * l) + \
+        return (800 * p) + (801.724 * c) + (382.026 * l) + \
                (78.922 * m) + (74.396 * f) + (10 * d)
 
 
