@@ -6,15 +6,22 @@ from Player import Player
 
 class Board:
 
-    def __init__(self, player1: Player = None, player2: Player = None):
+    def __init__(self, player1: Player = None, player2: Player = None, nodes: OrderedDict() = None):
         nodesDict = OrderedDict()
-        for i in range(8):
-            for j in range(8):
-                nodesDict[Node(i, j)] = ' '
-        nodesDict[Node(3, 3)] = player1.color
-        nodesDict[Node(4, 4)] = player1.color
-        nodesDict[Node(3, 4)] = player2.color
-        nodesDict[Node(4, 3)] = player2.color
+        if nodes is None:
+            for i in range(8):
+                for j in range(8):
+                    nodesDict[Node(i, j)] = ' '
+
+            nodesDict[Node(3, 3)] = player1.color
+            nodesDict[Node(4, 4)] = player1.color
+            nodesDict[Node(3, 4)] = player2.color
+            nodesDict[Node(4, 3)] = player2.color
+        else:
+            for i in range(8):
+                for j in range(8):
+                    nodesDict[Node(i, j)] = nodes[Node(i, j)]
+
         self.nodes = nodesDict
 
     def set(self, nodes: OrderedDict()):
@@ -23,6 +30,7 @@ class Board:
             for j in range(8):
                 nodesDict[Node(i, j)] = nodes[Node(i, j)]
         self.nodes = nodesDict
+
 
 
 

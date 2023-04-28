@@ -11,38 +11,25 @@ from Player import Player
 
 class AI:
 
-    INFINITY = 1.0e+10
+    def __init__(self, board=None, player=None):
+        self.game = Reversi(board, player)
 
-    def __init__(self, board=None):
-        self.game = Reversi()
-        if board:
-            self.set_board(board)
-
-
-    def set_board(self, board):
-        self.game.board.set(board)
-
-        # finding available moves
-
-    def available_moves(self, board, player):
-        self.set_board(board)
+    def available_moves(self, player):
         self.game.player = Player(player)
         return self.game.available_fields()
 
-
-    def get_resulting_board(self, board, player, coord):
-        self.set_board(board)
+    def get_resulting_board(self, player, node):
         self.game.player = Player(player)
-        self.game.play(coord)
-        return board
+        self.game.playC(node)
+        return self.game.board.nodes
 
     def is_game_over(self, board):
-        self.set_board(board)
         return self.game.check() != self.game.GAME_STATES["IN_PROGRESS"]
 
 class Algorithms:
     MAX = ' '
     MIN = ' '
+    nodes_visited = 0
 
     @staticmethod
     def set_min_max(player):
@@ -54,90 +41,90 @@ class Algorithms:
     def get_next_move(board, player):
         # the depth argument defines how many levels deep we go before using heuristic
         Algorithms.set_min_max(player)
-        _, move, nodes = Algorithms.alfa_beta(board, 3, player)
+        Algorithms.nodes_visited = 0
+        _, move, nodes = Algorithms.alfa_beta(board, 6, player)
         return move, nodes
 
     @staticmethod
-    def minimax(board, depth, player, nodes_visited=0):
-        ai = AI();
+    def minimax(board, depth, player):
         # if game is over then return something
+        ai = AI(board, player)
         best_move = None
         # if it is a max node
         if ai.is_game_over(board) or depth == 0:
-            return Algorithms.more_tiles(board, player), None, nodes_visited
-
+            return Algorithms.corners(board), None, Algorithms.nodes_visited
 
         if player == Algorithms.MAX:
-            best_score = -ai.INFINITY
-            available_moves = ai.available_moves(board, Algorithms.MAX)
+            best_score = -float('inf')
+            available_moves = ai.available_moves(Algorithms.MAX)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, Algorithms.MAX, move)
-                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MIN, nodes_visited)
+                    Algorithms.MAX, move)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MIN)
                 if value > best_score:
                     best_score = value
                     best_move = move
-                nodes_visited += nodes
-            return best_score, best_move, nodes_visited
+                Algorithms.nodes_visited += 1
+            return best_score, best_move, Algorithms.nodes_visited
 
         # if it is a min node
         else:
-            best_score = ai.INFINITY
-            available_moves = ai.available_moves(board, Algorithms.MIN)
+            best_score = float('inf')
+            available_moves = ai.available_moves(Algorithms.MIN)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, Algorithms.MIN, move)
-                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MAX, nodes_visited)
+                    Algorithms.MIN, move)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MAX)
                 if value < best_score:
                     best_score = value
                     best_move = move
-                nodes_visited += nodes
-            return best_score, best_move, nodes_visited
+                Algorithms.nodes_visited += 1
+            return best_score, best_move, Algorithms.nodes_visited
 
     @staticmethod
-    def alfa_beta(board,depth, player, alpha=float('-inf'), beta=float('inf'), nodes_visited=0):
-        ai = AI();
-        # if game is over then return something
+    def alfa_beta(board,depth, player, alpha=float('-inf'), beta=float('inf')):
+        ai = AI(board, player)
         best_move = None
-
         if ai.is_game_over(board) or depth == 0:
-            return Algorithms.heuristic3(board), None, nodes_visited
+            return Algorithms.mixed(board), None, Algorithms.nodes_visited
 
         if player == Algorithms.MAX:
-            best_score = -ai.INFINITY
-            available_moves = ai.available_moves(board, Algorithms.MAX)
+            best_score = -float('inf')
+            available_moves = ai.available_moves(Algorithms.MAX)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, Algorithms.MAX, move)
-                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MIN, alpha, beta, nodes_visited)
+                    Algorithms.MAX, move)
+
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MIN, alpha, beta)
                 if value > best_score:
                     best_score = value
                     best_move = move
+                if best_move is None: best_move = move
                 alpha = max(alpha, best_score)
 
                 if beta <= alpha:
                     break
-                nodes_visited += 1
-            return best_score, best_move, nodes_visited
+                Algorithms.nodes_visited += 1
+            return best_score, best_move, Algorithms.nodes_visited
 
-            # if it is a min node
         else:
-            best_score = ai.INFINITY
-            available_moves = ai.available_moves(board, Algorithms.MIN)
+            best_score = float('inf')
+            available_moves = ai.available_moves( Algorithms.MIN)
             for move in available_moves:
                 node = ai.get_resulting_board(
-                    board, Algorithms.MIN, move)
-                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MAX, alpha, beta, nodes_visited)
+                    Algorithms.MIN, move)
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MAX, alpha, beta)
                 if value < best_score:
                     best_score = value
                     best_move = move
+                if best_move is None : best_move = move
 
                 beta = min(beta, best_score)
 
                 if beta <= alpha:
                     break
-                nodes_visited += 1
-            return best_score, best_move, nodes_visited
+                Algorithms.nodes_visited += 1
+            return best_score, best_move, Algorithms.nodes_visited
 
     @staticmethod
     def changePlayer(player):
@@ -146,26 +133,61 @@ class Algorithms:
         else: return 1
 
     @staticmethod
-    def heuristic3(board):
-        max_player = 0
-        min_player = 0
+    def currentColoredTiles(board):
+        player1 = 0
+        player2 = 0
+
         for row in range(8):
             for col in range(8):
                 if board[Node(row,col)] == Algorithms.MAX:
-                    max_player +=1
+                    player1 += 1
                 elif board[Node(row,col)] == Algorithms.MIN:
-                    min_player += 1
-        return random.randint(90, 100) * (max_player - min_player ) / (max_player + min_player)
+                    player2 += 1
+
+        if player1 > player2:
+            score = (100.0 * player1) / (player1 + player2)
+        elif player1 < player2:
+            score = -(100.0 * player2) / (player1 + player2)
+        else:
+            score = 0
+        return score
 
     @staticmethod
-    def heuristic2(board: Board, player):
-        all_nodes = [Node(i, j) for i in range(8) for j in range(8)]
+    def checkCorners(board):
+        return -25 * Algorithms.corners(board, [(0, 0), (0, 7), (7, 0), (7, 7)])
+
+    @staticmethod
+    def checkEmptyCorners(board):
         score = 0
-        for row in range(8):
-            for col in range(8):
-                if board[Node(row, col)] == player:
-                    score += 1
-        return random() * score
+        if board[Node(0, 0)] == ' ':
+            score += Algorithms.corners(board, [(0, 1), (1, 1), (1, 0)])
+        if board[Node(0, 7)] == ' ':
+            score += Algorithms.corners(board, [(0, 6), (1, 6), (1, 7)])
+        if board[Node(7, 0)] == ' ':
+            score += Algorithms.corners(board, [(7, 1), (6, 1), (6, 0)])
+        if board[Node(7, 7)] == ' ':
+            score += Algorithms.corners(board, [(6, 7), (6, 6), (7, 6)])
+        return -12.5 * score
+
+
+    @staticmethod
+    def corners(board, corners):
+        max_tiles = min_tiles = 0
+        for x,y in corners:
+            if board[Node(x, y)] == Algorithms.MAX:
+                max_tiles += 1
+            elif board[Node(x, y)] == Algorithms.MIN:
+                min_tiles += 1
+
+        return  max_tiles - min_tiles
+
+
+
+    @staticmethod
+    def mixed(board):
+        return Algorithms.checkCorners(board) + Algorithms.currentColoredTiles(board) +Algorithms.checkEmptyCorners(board)
+
+
 
     @staticmethod
     def game_heuristic(board):
@@ -365,7 +387,7 @@ class Algorithms:
         # =============================================================================================
         # final weighted score
         # adding different weights to different evaluations
-        return (800 * p) + (801.724 * c) + (382.026 * l) + \
+        return (10 * p) + (801.724 * c) + (382.026 * l) + \
                (78.922 * m) + (74.396 * f) + (10 * d)
 
 
