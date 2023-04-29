@@ -1,3 +1,4 @@
+
 from collections import OrderedDict
 import random
 
@@ -23,7 +24,7 @@ class AI:
         self.game.playC(node)
         return self.game.board.nodes
 
-    def is_game_over(self, board):
+    def is_game_over(self):
         return self.game.check() != self.game.GAME_STATES["IN_PROGRESS"]
 
 class Algorithms:
@@ -42,17 +43,17 @@ class Algorithms:
         # the depth argument defines how many levels deep we go before using heuristic
         Algorithms.set_min_max(player)
         Algorithms.nodes_visited = 0
-        _, move, nodes = Algorithms.alfa_beta(board, 6, player)
+        _, move, nodes = Algorithms.alfa_beta(board, 3, player, Algorithms.currentColoredTiles)
         return move, nodes
 
     @staticmethod
-    def minimax(board, depth, player):
+    def minimax(board, depth, player, heuristic):
         # if game is over then return something
         ai = AI(board, player)
         best_move = None
         # if it is a max node
-        if ai.is_game_over(board) or depth == 0:
-            return Algorithms.corners(board), None, Algorithms.nodes_visited
+        if ai.is_game_over() or depth == 0:
+            return heuristic(board), None, Algorithms.nodes_visited
 
         if player == Algorithms.MAX:
             best_score = -float('inf')
@@ -60,7 +61,7 @@ class Algorithms:
             for move in available_moves:
                 node = ai.get_resulting_board(
                     Algorithms.MAX, move)
-                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MIN)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MIN, heuristic)
                 if value > best_score:
                     best_score = value
                     best_move = move
@@ -74,7 +75,7 @@ class Algorithms:
             for move in available_moves:
                 node = ai.get_resulting_board(
                     Algorithms.MIN, move)
-                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MAX)
+                value, _, nodes = Algorithms.minimax(node, depth - 1, Algorithms.MAX, heuristic)
                 if value < best_score:
                     best_score = value
                     best_move = move
@@ -82,11 +83,11 @@ class Algorithms:
             return best_score, best_move, Algorithms.nodes_visited
 
     @staticmethod
-    def alfa_beta(board,depth, player, alpha=float('-inf'), beta=float('inf')):
+    def alfa_beta(board,depth, player, heuristic, alpha=float('-inf'), beta=float('inf')):
         ai = AI(board, player)
         best_move = None
-        if ai.is_game_over(board) or depth == 0:
-            return Algorithms.mixed(board), None, Algorithms.nodes_visited
+        if ai.is_game_over() or depth == 0:
+            return heuristic(board), None, Algorithms.nodes_visited
 
         if player == Algorithms.MAX:
             best_score = -float('inf')
@@ -95,7 +96,7 @@ class Algorithms:
                 node = ai.get_resulting_board(
                     Algorithms.MAX, move)
 
-                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MIN, alpha, beta)
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MIN, heuristic,alpha, beta)
                 if value > best_score:
                     best_score = value
                     best_move = move
@@ -109,11 +110,11 @@ class Algorithms:
 
         else:
             best_score = float('inf')
-            available_moves = ai.available_moves( Algorithms.MIN)
+            available_moves = ai.available_moves(Algorithms.MIN)
             for move in available_moves:
                 node = ai.get_resulting_board(
                     Algorithms.MIN, move)
-                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MAX, alpha, beta)
+                value, _, nodes = Algorithms.alfa_beta(node, depth - 1, Algorithms.MAX, heuristic, alpha, beta)
                 if value < best_score:
                     best_score = value
                     best_move = move
@@ -139,9 +140,9 @@ class Algorithms:
 
         for row in range(8):
             for col in range(8):
-                if board[Node(row,col)] == Algorithms.MAX:
+                if board[Node(row, col)] == Algorithms.MAX:
                     player1 += 1
-                elif board[Node(row,col)] == Algorithms.MIN:
+                elif board[Node(row, col)] == Algorithms.MIN:
                     player2 += 1
 
         if player1 > player2:
@@ -153,8 +154,23 @@ class Algorithms:
         return score
 
     @staticmethod
+    def moreMoves(board):
+        ai = AI(board, Algorithms.MAX)
+        max_tiles = len(ai.available_moves(Algorithms.MAX))
+        min_tiles = len(ai.available_moves(Algorithms.MIN))
+
+        if max_tiles > min_tiles:
+            score = (100.0 * max_tiles) / (max_tiles + min_tiles)
+        elif max_tiles < min_tiles:
+            score = -(100.0 * min_tiles) / (max_tiles + min_tiles)
+        else:
+            score = 0
+
+        return score
+
+    @staticmethod
     def checkCorners(board):
-        return -25 * Algorithms.corners(board, [(0, 0), (0, 7), (7, 0), (7, 7)])
+        return Algorithms.corners(board, [(0, 0), (0, 7), (7, 0), (7, 7)])
 
     @staticmethod
     def checkEmptyCorners(board):
@@ -167,7 +183,7 @@ class Algorithms:
             score += Algorithms.corners(board, [(7, 1), (6, 1), (6, 0)])
         if board[Node(7, 7)] == ' ':
             score += Algorithms.corners(board, [(6, 7), (6, 6), (7, 6)])
-        return -12.5 * score
+        return score
 
 
     @staticmethod
@@ -179,13 +195,13 @@ class Algorithms:
             elif board[Node(x, y)] == Algorithms.MIN:
                 min_tiles += 1
 
-        return  max_tiles - min_tiles
+        return max_tiles - min_tiles
 
 
 
     @staticmethod
     def mixed(board):
-        return Algorithms.checkCorners(board) + Algorithms.currentColoredTiles(board) +Algorithms.checkEmptyCorners(board)
+        return -25 * Algorithms.checkCorners(board) + Algorithms.currentColoredTiles(board) - 12.5 * Algorithms.checkEmptyCorners(board)
 
 
 
@@ -389,6 +405,8 @@ class Algorithms:
         # adding different weights to different evaluations
         return (10 * p) + (801.724 * c) + (382.026 * l) + \
                (78.922 * m) + (74.396 * f) + (10 * d)
+
+
 
 
 
